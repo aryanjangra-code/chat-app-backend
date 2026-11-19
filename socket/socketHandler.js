@@ -16,7 +16,10 @@ const findAccessibleRoom = async (roomId, userId) => {
 export const initSocket = (io) => {
   io.use(async (socket, next) => {
     try {
-      const decoded = verifySocketToken(socket.handshake.headers.cookie || "");
+      const decoded = verifySocketToken(
+        socket.handshake.headers.cookie || "",
+        socket.handshake.auth?.token
+      );
       if (!decoded) return next(new Error("Authentication required"));
       const user = await User.findById(decoded.id).select("username");
       if (!user) return next(new Error("User account not found"));

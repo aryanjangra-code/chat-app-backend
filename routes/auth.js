@@ -19,6 +19,7 @@ const issueSession = (res, user) => {
   const csrfToken = crypto.randomBytes(32).toString("hex");
   res.cookie(AUTH_COOKIE, token, authCookieOptions);
   res.cookie(CSRF_COOKIE, csrfToken, csrfCookieOptions);
+  return token;
 };
 
 const clearSession = (res) => {
@@ -41,8 +42,8 @@ router.post("/signup", authRateLimiter, asyncHandler(async (req, res) => {
 
   try {
     const user = await User.create({ username, password });
-    issueSession(res, user);
-    return res.status(201).json({ user: user.toSafeObject() });
+    const token = issueSession(res, user);
+    return res.status(201).json({ user: user.toSafeObject(), token });
   } catch (err) {
     if (err.code === 11000) return res.status(409).json({ message: "Username already taken" });
     if (err instanceof mongoose.Error.ValidationError) {
@@ -68,8 +69,8 @@ router.post("/login", authRateLimiter, asyncHandler(async (req, res) => {
 
   user.isOnline = true;
   await user.save();
-  issueSession(res, user);
-  res.json({ user: user.toSafeObject() });
+  const token = issueSession(res, user);
+  res.json({ user: user.toSafeObject(), token });
 }));
 
 router.post("/logout", protect, asyncHandler(async (req, res) => {

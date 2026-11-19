@@ -11,6 +11,8 @@ export const csrfProtection = (req, res, next) => {
   // by the global originGuard middleware in server.js.
   if (req.path === "/auth/login" || req.path === "/auth/signup") return next();
 
+  if (req.get("Authorization")?.startsWith("Bearer ")) return next();
+
   const cookieToken = parseCookies(req.headers.cookie)[CSRF_COOKIE];
   const headerToken = req.get("X-CSRF-Token");
 

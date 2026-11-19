@@ -15,7 +15,13 @@ export const parseCookies = (cookieHeader = "") => {
   return cookies;
 };
 
-export const getTokenFromRequest = (req) => parseCookies(req.headers.cookie)[AUTH_COOKIE];
+export const getTokenFromRequest = (req) => {
+  const authorization = req.get("Authorization") || "";
+  if (authorization.startsWith("Bearer ")) {
+    return authorization.slice(7).trim();
+  }
+  return parseCookies(req.headers.cookie)[AUTH_COOKIE];
+};
 
 export const protect = (req, res, next) => {
   const token = getTokenFromRequest(req);
@@ -31,9 +37,9 @@ export const protect = (req, res, next) => {
   }
 };
 
-export const verifySocketToken = (cookieHeader) => {
+export const verifySocketToken = (cookieHeader, authToken) => {
   try {
-    const token = parseCookies(cookieHeader)[AUTH_COOKIE];
+    const token = authToken || parseCookies(cookieHeader)[AUTH_COOKIE];
     if (!token) return null;
     const decoded = jwt.verify(token, JWT_SECRET);
     return decoded.id ? decoded : null;
