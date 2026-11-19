@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { CSRF_COOKIE } from "../config/cookies.js";
-import { parseCookies } from "../../chat-app-backend/middleware/auth.js";
+import { parseCookies } from "./auth.js";
 
 const safeMethods = new Set(["GET", "HEAD", "OPTIONS"]);
 
