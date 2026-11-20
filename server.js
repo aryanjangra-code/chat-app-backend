@@ -48,6 +48,10 @@ app.use("/api", csrfProtection);
 app.use("/api/auth", authRoutes);
 app.use("/api/rooms", roomRoutes);
 
+app.get("/", (req, res) => {
+  res.send("Welcome to the backend server. ");
+});
+
 app.get("/api/health", (req, res) => {
   const dbReady = mongoose.connection.readyState === 1;
   res.status(dbReady ? 200 : 503).json({
