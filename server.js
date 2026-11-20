@@ -6,7 +6,6 @@ import { Server } from "socket.io";
 
 import "./config/env.js";
 import { connectDB } from "./config/db.js";
-import { csrfProtection } from "./middleware/csrf.js";
 import authRoutes from "./routes/auth.js";
 import roomRoutes from "./routes/rooms.js";
 import { initSocket } from "./socket/socketHandler.js";
@@ -27,12 +26,15 @@ const isAllowedOrigin = (origin) => !origin || allowedOrigins.has(origin.replace
 app.set("trust proxy", 1);
 app.use(cors({
   origin(origin, callback) {
-    if (isAllowedOrigin(origin)) return callback(null, true);
+    if (isAllowedOrigin(origin)) {
+      return callback(null, true);
+    }
+
     return callback(new Error("Origin not allowed by CORS"));
   },
-  credentials: true,
+  credentials: false,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "X-CSRF-Token"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 }));
 app.use(express.json({ limit: "20kb" }));
 
@@ -44,7 +46,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use("/api", csrfProtection);
+
 app.use("/api/auth", authRoutes);
 app.use("/api/rooms", roomRoutes);
 
@@ -69,8 +71,13 @@ app.use((err, req, res, next) => {
 });
 
 const io = new Server(server, {
-  cors: { origin: [...allowedOrigins], credentials: true, methods: ["GET", "POST"] },
-  allowRequest: (req, callback) => callback(null, isAllowedOrigin(req.headers.origin)),
+  cors: {
+    origin: [...allowedOrigins],
+    credentials: false,
+    methods: ["GET", "POST"],
+  },
+  allowRequest: (req, callback) =>
+    callback(null, isAllowedOrigin(req.headers.origin)),
 });
 initSocket(io);
 

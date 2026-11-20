@@ -34,7 +34,10 @@ const createUser = async (suffix) => {
   });
   assert.equal(response.status, 201, JSON.stringify(data));
   userIds.push(data.user.id);
-  return data;
+  return {
+  ...data,
+  token: data.accessToken,
+};
 };
 
 const connectSocket = (token) => new Promise((resolve, reject) => {
@@ -97,6 +100,27 @@ try {
   });
   assert.equal(login.response.status, 200);
   assert.equal(login.data.user.id, owner.user.id);
+  const oldRefreshToken = owner.refreshToken;
+
+const rotated = await request("/auth/refresh", {
+  method: "POST",
+  body: JSON.stringify({
+    refreshToken: oldRefreshToken,
+  }),
+});
+
+assert.equal(rotated.response.status, 200);
+assert.ok(rotated.data.accessToken);
+assert.ok(rotated.data.refreshToken);
+
+assert.notEqual(
+  rotated.data.refreshToken,
+  oldRefreshToken
+);
+
+// Use the newly issued access token for the remaining tests.
+owner.token = rotated.data.accessToken;
+owner.refreshToken = rotated.data.refreshToken;
 
   const duplicate = await request("/auth/signup", {
     method: "POST",
@@ -173,4 +197,12 @@ try {
     await User.deleteMany({ _id: { $in: userIds } });
     await mongoose.disconnect();
   }
+  const reusedToken = await request("/auth/refresh", {
+  method: "POST",
+  body: JSON.stringify({
+    refreshToken: oldRefreshToken,
+  }),
+});
+
+assert.equal(reusedToken.response.status, 401);
 }

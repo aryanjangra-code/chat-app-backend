@@ -4,6 +4,7 @@ import User from "../models/User.js";
 import Room from "../models/Room.js";
 import Message from "../models/Message.js";
 import { isRoomMember } from "../utils/roomAccess.js";
+import RefreshSession from "../models/RefreshSession.js";
 
 const onlineUsers = new Map();
 
@@ -15,23 +16,45 @@ const findAccessibleRoom = async (roomId, userId) => {
 
 export const initSocket = (io) => {
   io.use(async (socket, next) => {
-    try {
-      const decoded = verifySocketToken(
-        socket.handshake.headers.cookie || "",
-        socket.handshake.auth?.token
-      );
-      if (!decoded) return next(new Error("Authentication required"));
-      const user = await User.findById(decoded.id).select("username");
-      if (!user) return next(new Error("User account not found"));
-      socket.userId = decoded.id;
-      socket.data.username = user.username;
-      next();
-    } catch {
-      next(new Error("Socket authentication failed"));
+  try {
+    const decoded = verifySocketToken(
+      socket.handshake.auth?.token
+    );
+
+    if (!decoded) {
+      return next(new Error("Authentication required"));
     }
-  });
+
+    const activeSession = await RefreshSession.findOne({
+      familyId: decoded.sid,
+      revokedAt: null,
+      expiresAt: { $gt: new Date() },
+    }).select("_id");
+
+    if (!activeSession) {
+      return next(new Error("Session expired. Please sign in again."));
+    }
+
+    const user = await User.findById(decoded.id).select("username");
+
+    if (!user) {
+      return next(new Error("User account not found"));
+    }
+
+    socket.userId = decoded.id;
+    socket.data.username = user.username;
+    socket.data.tokenExpiresAt = decoded.exp * 1000;
+
+    next();
+  } catch {
+    next(new Error("Socket authentication failed"));
+  }
+});
 
   io.on("connection", (socket) => {
+    const expiryTimer = setTimeout(() => {
+  socket.disconnect(true);
+}, Math.max(0, socket.data.tokenExpiresAt - Date.now()));
     const { userId } = socket;
     if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
     onlineUsers.get(userId).add(socket.id);
@@ -143,6 +166,7 @@ export const initSocket = (io) => {
     socket.on("typing:stop", (payload) => handleTyping(payload, false));
 
     socket.on("disconnect", async () => {
+      clearTimeout(expiryTimer);
       try {
         const sockets = onlineUsers.get(userId);
         sockets?.delete(socket.id);
