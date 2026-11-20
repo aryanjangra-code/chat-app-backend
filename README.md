@@ -43,7 +43,7 @@ Use `npm start` to run without nodemon. The health endpoint is `GET /api/health`
 | `POST` | `/api/rooms/dm/:otherUserId` | Find or create a direct message |
 | `GET` | `/api/rooms/:roomId/messages` | Read room history |
 
-Routes under `/api/auth` and `/api/rooms` require `Authorization: Bearer <token>`, except signup and login.
+Routes under `/api/auth` and `/api/rooms` require a session cookie or `Authorization: Bearer <token>`, except signup and login. Browser requests use the `gc_token` HTTP-only cookie. State-changing cookie-authenticated requests must also send the `gc_csrf` cookie value in the `X-CSRF-Token` header.
 
 ## Room access
 
